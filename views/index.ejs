@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="socket.io/socket.io.js"></script>
+    <script>
+        $(document).ready(function(){
+            var socket = io("http://localhost:3000")
+            $("#btnlogin").click(function(){
+                socket.emit("add-user",$("#username").val())
+            })
+        })
+    </script>
+    <style>
+        body {
+            width: 99vw;
+            height: 99vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        form {
+            width: 50%;
+            border: 1px solid gray;
+            border-radius: 5px;
+            padding: 30px;
+        }
+        .btn-primary{width: 100%;}
+    </style>
+
+</head>
+<body>
+    
+        <form>
+            <h3>Login</h3>
+            <div class="form-group">
+                <label for="usr">user name:</label>
+                <input type="text" class="form-control" id="username">
+            </div>
+            <div class="form-group">
+                <label for="usr">password:</label>
+                <input type="text" class="form-control" id="password">
+            </div>
+            <input id="btnlogin" type="submit" value="Login" class="btn btn-primary" />
+        </form>
+  
+    
+</body>
+</html>
