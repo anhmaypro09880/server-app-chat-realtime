@@ -14,6 +14,38 @@ const s3 = new aws.S3({
     region: "us-west-1",
 });
 
+const loopArray = (images, fileArray) => {
+    for (var i = 0; i < fileArray.length; i++) {
+        let fileLocation = fileArray[i].location;
+        images.push(fileLocation);
+    }
+};
+const loopArrayName = (images, fileArray) => {
+    for (var i = 0; i < fileArray.length; i++) {
+        let fileNameOrigin = fileArray[i].originalname;
+        images.push(fileNameOrigin);
+    }
+};
+
+const checkFileTypesByName = (array) => {
+    for (var i = 0; i < array.length; i++) {
+        console.log(array[i]);
+        var endPoint = array[i].split(".");
+        var ext = endPoint[endPoint.length - 1];
+        console.log(ext);
+        switch (ext.toLowerCase()) {
+            case "mp4":
+            case "doc":
+            case "video":
+            case "document":
+            case "pdf":
+                //etc
+                return true;
+        }
+    }
+    return false;
+};
+
 const upload = (bucketName) =>
     multer({
         storage: multerS3({
@@ -22,11 +54,34 @@ const upload = (bucketName) =>
             metadata: function (req, file, cb) {
                 cb(null, { fieldName: file.fieldname });
             },
+            // if(checkFileTypesByName){
+
+            // }
             key: function (req, file, cb) {
-                cb(null, `image-${Date.now()}.jpeg`);
+                cb(null, `image-${Date.now()}+${file.originalname}`);
             },
         }),
     });
+
+const uploadS3 = (bucketName) =>
+    multer({
+        storage: multerS3({
+            s3: s3,
+            acl: "public-read",
+            bucket: bucketName,
+            metadata: (req, file, callBack) => {
+                callBack(null, { fieldName: file.fieldname });
+            },
+            key: (req, file, callBack) => {
+                var fullPath = "products/" + file.originalname;
+                callBack(null, fullPath);
+            },
+        }),
+        limits: { fileSize: 2000000 },
+        fileFilter: function (req, file, cb) {
+            checkFileType(file, cb);
+        },
+    }).array("photos", 10);
 
 module.exports.getMessages = async (req, res, next) => {
     try {
@@ -44,6 +99,7 @@ module.exports.getMessages = async (req, res, next) => {
                 fromSelf: msg.sender.toString() === from,
                 message: msg.message.text,
                 image: msg.message.image,
+                files: msg.message.files,
                 createAt: msg.createdAt,
             };
         });
@@ -69,108 +125,85 @@ module.exports.addMessage = async (req, res, next) => {
         next(ex);
     }
 };
-module.exports.imageMessageSend = (req, res, next) => {
-    console.log("2 send");
-};
 
 module.exports.imageMessageSend = (req, res, next) => {
     const form = formidable();
     console.log("Connected to imageMessageSend ");
+
     var senderNameOut, reseverIdOut;
     form.parse(req, (err, fields, files) => {
-        console.log("INto form");
+        console.log("Into dataForm");
         const { senderName, imageName, reseverId, images, file } = fields;
         senderNameOut = senderName;
         reseverIdOut = reseverId;
-        console.log("senderNameOut IN" + senderNameOut);
     });
-    console.log("senderNameOut :" + senderNameOut);
+    const uploadMultle = upload("appchat-picture-profile").array("images", 3);
 
-    // console.log(req.files);
-    // res.status(200).json({ data: req.files });
-    const uploadSingle = upload("appchat-picture-profile").single("images");
-    console.log(req.formData);
-
-    uploadSingle(req, res, async (err) => {
-        // console.log("senderNameOut IntoUpload:" + senderNameOut);
-        if (err) {
-            console.log("loi :" + err);
+    uploadMultle(req, res, async (error) => {
+        console.log(req.files);
+        // if (checkFileType(req.files)) {
+        //     console.log("Image");
+        // }
+        // console.log("Not image ");
+        if (error) {
+            console.log("errors", error);
         } else {
-            console.log("okkk");
-            const filePath = req.file.location;
-            console.log("OUT" + filePath);
-
+            console.log("Into create Message");
+            const fileNameArray = [];
+            loopArrayName(fileNameArray, req.files);
+            if (checkFileTypesByName(fileNameArray)) {
+                console.log("Correct image type");
+            }
+            const imagesArray = [];
+            loopArray(imagesArray, req.files);
             const insertMessage = await messageModel.create({
                 sender: senderNameOut,
                 users: [senderNameOut, reseverIdOut],
                 message: {
                     text: "",
-                    image: req.file.location,
+                    image: imagesArray,
+                    files: null,
                 },
             });
-            res.status(200).json({ data: req.file.location });
-
-            // form.parse(req, (err, fields, files) => {
-            //     console.log("INto");
-            //     const { senderName, imageName, reseverId, images, file } =
-            //         fields;
-            //     console.log("IN" + filePath);
-            //     const newPath =
-            //         __dirname +
-            //         `../../../client/src/assets/images/${imageName}`;
-
-            //     try {
-            //         fs.copyFile(files.image.path, newPath, async (err) => {
-            //             if (err) {
-            //                 res.status(500).json({
-            //                     error: {
-            //                         errorMessage: "Image upload fail",
-            //                     },
-            //                 });
-            //             } else {
-            //                 const insertMessage = await messageModel.create({
-            //                     sender: senderName,
-            //                     users: [senderName, reseverId],
-            //                     message: {
-            //                         text: "",
-            //                         image: req.file.location,
-            //                     },
-            //                 });
-            //             }
-            //         });
-            //     } catch (error) {}
-            // });
-
-            // await User.create({ photoUrl: req.file.location });
-            // res.status(200).json({ data: req.file.location });
+            res.status(200).json({ data: imagesArray });
         }
     });
+};
 
-    // form.parse(req, (err, fields, files) => {
-    //     const { senderName, imageName, reseverId, images, file } = fields;
+module.exports.fileMessageSend = (req, res, next) => {
+    const form = formidable();
+    console.log("Connected to File send Message ");
 
-    //     const newPath =
-    //         __dirname + `../../../client/src/assets/images/${imageName}`;
+    var senderNameOut, reseverIdOut;
+    form.parse(req, (err, fields, files) => {
+        const { senderName, imageName, reseverId, images, file } = fields;
+        senderNameOut = senderName;
+        reseverIdOut = reseverId;
+    });
+    const uploadMultle = upload("appchat-picture-profile").array("images", 3);
 
-    //     try {
-    //         fs.copyFile(files.image.path, newPath, async (err) => {
-    //             if (err) {
-    //                 res.status(500).json({
-    //                     error: {
-    //                         errorMessage: "Image upload fail",
-    //                     },
-    //                 });
-    //             } else {
-    //                 const insertMessage = await messageModel.create({
-    //                     sender: senderName,
-    //                     users: [senderName, reseverId],
-    //                     message: {
-    //                         text: "",
-    //                         image: imageName,
-    //                     },
-    //                 });
-    //             }
-    //         });
-    //     } catch (error) {}
-    // });
+    uploadMultle(req, res, async (error) => {
+        if (error) {
+            console.log("errors", error);
+        } else {
+            console.log("Into create Message");
+            const fileNameArray = [];
+            loopArrayName(fileNameArray, req.files);
+            if (checkFileTypesByName(fileNameArray)) {
+                console.log("Correct image type");
+            }
+            const imagesArray = [];
+            loopArray(imagesArray, req.files);
+            const insertMessage = await messageModel.create({
+                sender: senderNameOut,
+                users: [senderNameOut, reseverIdOut],
+                message: {
+                    text: "",
+                    image: null,
+                    files: imagesArray,
+                },
+            });
+            res.status(200).json({ data: imagesArray });
+        }
+    });
 };

@@ -1,10 +1,10 @@
 const {
-  login,
-  register,
-  getAllUsers,
-  setAvatar,
-  logOut,
-  ktraSDT
+    login,
+    register,
+    getAllUsers,
+    setAvatar,
+    logOut,
+    ktraSDT,
 } = require("../controllers/userController");
 
 const router = require("express").Router();

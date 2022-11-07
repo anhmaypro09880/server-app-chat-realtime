@@ -5,7 +5,11 @@ const MessageSchema = mongoose.Schema(
         message: {
             text: { type: String },
             image: {
-                type: String,
+                type: Array,
+                default: "",
+            },
+            files: {
+                type: Array,
                 default: "",
             },
         },
